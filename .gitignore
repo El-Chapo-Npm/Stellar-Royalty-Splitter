@@ -1,4 +1,14 @@
+# Rust
 /target
 Cargo.lock
-.env
 *.wasm
+
+# Node
+frontend/node_modules
+backend/node_modules
+
+# Env
+.env
+backend/.env
+frontend/.env
+

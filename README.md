@@ -18,10 +18,27 @@ Shares are expressed in **basis points** (1 bp = 0.01%). They must sum to **10,0
 ## Project structure
 
 ```
-├── src/lib.rs              # Contract source
+├── src/lib.rs                        # Soroban contract (Rust)
 ├── tests/integration_test.rs
-├── scripts/deploy.sh       # Build + deploy helper
-└── Cargo.toml
+├── scripts/deploy.sh
+├── Cargo.toml
+├── frontend/                         # React + Vite UI
+│   └── src/
+│       ├── App.tsx
+│       ├── api.ts                    # Backend client
+│       └── components/
+│           ├── WalletConnect.tsx     # Freighter wallet connect
+│           ├── InitializeForm.tsx    # Set up collaborators
+│           ├── DistributeForm.tsx    # Trigger distribution
+│           └── CollaboratorTable.tsx # View current splits
+└── backend/                          # Express API
+    └── src/
+        ├── index.js
+        ├── stellar.js                # Soroban RPC helpers
+        └── routes/
+            ├── initialize.js
+            ├── distribute.js
+            └── collaborators.js
 ```
 
 ---
@@ -102,6 +119,27 @@ stellar contract invoke \
 ## Rounding
 
 Integer division is used for each collaborator's payout. Any rounding dust (1–2 stroops) is assigned to the last collaborator in the list to ensure the full amount is always distributed.
+
+---
+
+## Running the frontend & backend
+
+```bash
+# Backend
+cd backend
+cp .env.example .env   # fill in your keys
+npm install
+npm run dev            # http://localhost:3001
+
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev            # http://localhost:5173
+```
+
+The frontend proxies `/api/*` to the backend automatically via Vite config.
+
+The backend builds unsigned transaction XDR and returns it to the frontend. Freighter signs and submits — your private key never leaves the browser.
 
 ---
 
