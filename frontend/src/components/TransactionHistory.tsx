@@ -12,19 +12,17 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
+  const LIMIT = 10;
 
   const fetchHistory = async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.getTransactionHistory(contractId, limit, offset);
+      const result = await api.getTransactionHistory(contractId, LIMIT, offset);
       setTransactions(result.data || []);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch history"
-      );
+      setError(err instanceof Error ? err.message : "Failed to fetch history");
     } finally {
       setLoading(false);
     }
@@ -32,7 +30,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
   useEffect(() => {
     fetchHistory();
-  }, [contractId, limit, offset]);
+  }, [contractId, offset]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -101,10 +99,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                       {truncateAddress(tx.initiatorAddress)}
                     </td>
                     <td>{tx.requestedAmount || "—"}</td>
-                    <td
-                      title={tx.txHash || undefined}
-                      className="tx-hash-cell"
-                    >
+                    <td title={tx.txHash || undefined} className="tx-hash-cell">
                       {truncateHash(tx.txHash)}
                     </td>
                     <td>
@@ -127,7 +122,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
           <div className="pagination">
             <button
-              onClick={() => setOffset(Math.max(0, offset - limit))}
+              onClick={() => setOffset(Math.max(0, offset - LIMIT))}
               disabled={offset === 0}
             >
               Previous
@@ -137,8 +132,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
               transactions
             </span>
             <button
-              onClick={() => setOffset(offset + limit)}
-              disabled={transactions.length < limit}
+              onClick={() => setOffset(offset + LIMIT)}
+              disabled={transactions.length < LIMIT}
             >
               Next
             </button>

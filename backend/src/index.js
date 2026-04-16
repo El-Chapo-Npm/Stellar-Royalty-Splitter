@@ -1,4 +1,6 @@
-import "dotenv/config";
+// dotenv is optional - load .env file if needed
+// import "dotenv/config";
+
 import express from "express";
 import cors from "cors";
 import { initializeRouter } from "./routes/initialize.js";
