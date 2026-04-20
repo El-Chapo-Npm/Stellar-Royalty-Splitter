@@ -575,34 +575,6 @@
     padding: var(--spacing-xs);
   }
 }
-  {
-    .kpi-icon {
-    font-size: 2rem;
-  }
-
-  .kpi-value {
-    font-size: 1.5rem;
-  }
-
-  .earners-list {
-    grid-template-columns: 1fr;
-  }
-
-  .stats-table table {
-    font-size: 0.9rem;
-  }
-
-  .stats-table th,
-  .stats-table td {
-    padding: 0.75rem;
-  }
-
-  .top-earners-section,
-  .collaborator-stats-section {
-    padding: 1.5rem;
-  }
-}
-
 
 @media (max-width: 480px) {
   .dashboard {
