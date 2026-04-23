@@ -111,6 +111,42 @@ export default function App() {
         );
       case "settings":
         return <Settings contractId={contractId} />;
+      case "secondary":
+        return walletAddress && contractId ? (
+          <div className="page-section">
+            <SecondaryRoyaltyConfig
+              contractId={contractId}
+              walletAddress={walletAddress}
+              onSuccess={() => {}}
+              onRateUpdate={setRoyaltyRate}
+            />
+            <RecordSecondarySale
+              contractId={contractId}
+              walletAddress={walletAddress}
+              royaltyRate={royaltyRate}
+              onSuccess={() => {}}
+            />
+            <DistributeSecondaryRoyalties
+              contractId={contractId}
+              walletAddress={walletAddress}
+              onSuccess={() => {}}
+            />
+            <ResaleHistory contractId={contractId} />
+          </div>
+        ) : (
+          <div className="page-empty">
+            <div className="empty-content">
+              <h2>Secondary Royalties</h2>
+              <p>
+                {!walletAddress && !contractId
+                  ? "Please connect your wallet and select a contract to manage secondary royalties."
+                  : !walletAddress
+                  ? "Please connect your wallet to manage secondary royalties."
+                  : "Please select a contract to manage secondary royalties."}
+              </p>
+            </div>
+          </div>
+        );
       default:
         return null;
     }
@@ -179,6 +215,14 @@ export default function App() {
                     >
                       Distribute
                     </button>
+                    <button
+                      className={`quick-action-btn ${
+                        currentPage === "secondary" ? "active" : ""
+                      }`}
+                      onClick={() => setCurrentPage("secondary")}
+                    >
+                      Secondary Royalties
+                    </button>
                   </>
                 )}
               </div>
@@ -189,36 +233,6 @@ export default function App() {
         <div className="app-main">{renderPage()}</div>
       </div>
 
-      {/* Hidden sections for additional features - accessible via navigation */}
-      {currentPage === "hidden-secondary" && walletAddress && (
-        <div className="hidden-section">
-          <div className="section-divider">
-            <h2>Secondary Royalty Management</h2>
-          </div>
-
-          <SecondaryRoyaltyConfig
-            contractId={contractId}
-            walletAddress={walletAddress}
-            onSuccess={() => {}}
-            onRateUpdate={setRoyaltyRate}
-          />
-
-          <RecordSecondarySale
-            contractId={contractId}
-            walletAddress={walletAddress}
-            royaltyRate={royaltyRate}
-            onSuccess={() => {}}
-          />
-
-          <DistributeSecondaryRoyalties
-            contractId={contractId}
-            walletAddress={walletAddress}
-            onSuccess={() => {}}
-          />
-
-          <ResaleHistory contractId={contractId} />
-        </div>
-      )}
     </div>
   );
 }
