@@ -1,5 +1,5 @@
 import express from "express";
-import { getAnalyticsData } from "../database.js";
+import db from "../database.js";
 
 const router = express.Router();
 
@@ -31,11 +31,66 @@ router.get("/analytics/:contractId", (req, res) => {
         .json({ success: false, error: "start date must be before end date." });
     }
 
-    const { summary, trends, topEarners, collaboratorStats } = getAnalyticsData(
-      contractId,
-      startDate.toISOString(),
-      endDate.toISOString()
-    );
+    // Run the same SQL-aggregated analytics that were previously provided
+    // by the database helper. Use the shared `db` instance.
+    const summary = db
+      .prepare(
+        `SELECT
+          COUNT(DISTINCT t.id) as totalTransactions,
+          COALESCE(SUM(CAST(dp.amountReceived as REAL)), 0) as totalDistributed,
+          COALESCE(AVG(CAST(dp.amountReceived as REAL)), 0) as averagePayout
+        FROM transactions t
+        LEFT JOIN distribution_payouts dp ON dp.transactionId = t.id
+        WHERE t.contractId = ? AND t.status = 'confirmed'
+          AND t.timestamp BETWEEN ? AND ?`
+      )
+      .get(contractId, startDate.toISOString(), endDate.toISOString());
+
+    const trends = db
+      .prepare(
+        `SELECT
+          DATE(t.timestamp) as date,
+          SUM(CAST(dp.amountReceived as REAL)) as amount,
+          COUNT(*) as count
+        FROM distribution_payouts dp
+        JOIN transactions t ON dp.transactionId = t.id
+        WHERE t.contractId = ? AND t.status = 'confirmed'
+          AND t.timestamp BETWEEN ? AND ?
+        GROUP BY DATE(t.timestamp)
+        ORDER BY date ASC`
+      )
+      .all(contractId, startDate.toISOString(), endDate.toISOString());
+
+    const topEarners = db
+      .prepare(
+        `SELECT
+          dp.collaboratorAddress as address,
+          SUM(CAST(dp.amountReceived as REAL)) as totalEarned,
+          COUNT(*) as payouts
+        FROM distribution_payouts dp
+        JOIN transactions t ON dp.transactionId = t.id
+        WHERE t.contractId = ? AND t.status = 'confirmed'
+          AND t.timestamp BETWEEN ? AND ?
+        GROUP BY dp.collaboratorAddress
+        ORDER BY totalEarned DESC
+        LIMIT 10`
+      )
+      .all(contractId, startDate.toISOString(), endDate.toISOString());
+
+    const collaboratorStats = db
+      .prepare(
+        `SELECT
+          dp.collaboratorAddress as address,
+          SUM(CAST(dp.amountReceived as REAL)) as totalEarned,
+          COUNT(*) as payoutCount
+        FROM distribution_payouts dp
+        JOIN transactions t ON dp.transactionId = t.id
+        WHERE t.contractId = ? AND t.status = 'confirmed'
+          AND t.timestamp BETWEEN ? AND ?
+        GROUP BY dp.collaboratorAddress
+        ORDER BY totalEarned DESC`
+      )
+      .all(contractId, startDate.toISOString(), endDate.toISOString());
 
     res.json({
       success: true,
