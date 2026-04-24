@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTheme } from "../context/ThemeContext";
+import { useSettings } from "../context/SettingsContext";
 import "./Settings.css";
 
 interface SettingsProps {
@@ -8,26 +9,19 @@ interface SettingsProps {
 
 export const Settings: React.FC<SettingsProps> = ({ contractId }) => {
   const { isDark, toggleTheme } = useTheme();
-  const [settings, setSettings] = useState({
-    autoSaveAuditLog: true,
-    notifyOnDistribution: true,
-    displayCurrency: "XLM",
-    maxPayoutsPerTransaction: 10,
-    minPayoutAmount: 0.1,
-    enableEmailNotifications: false,
-    emailAddress: "",
-  });
+  const { settings, updateSettings } = useSettings();
+  const [localSettings, setLocalSettings] = useState(() => ({ ...settings }));
 
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
-  const handleToggle = (key: keyof typeof settings) => {
-    const newValue = !settings[key];
-    setSettings({ ...settings, [key]: newValue });
+  const handleToggle = (key: keyof typeof localSettings) => {
+    const newValue = !localSettings[key];
+    setLocalSettings({ ...localSettings, [key]: newValue });
     showSaveStatus("Saving...");
   };
 
-  const handleChange = (key: keyof typeof settings, value: string | number) => {
-    setSettings({ ...settings, [key]: value });
+  const handleChange = (key: keyof typeof localSettings, value: string | number) => {
+    setLocalSettings({ ...localSettings, [key]: value });
   };
 
   const handleDarkMode = () => {
@@ -36,8 +30,8 @@ export const Settings: React.FC<SettingsProps> = ({ contractId }) => {
   };
 
   const handleSave = () => {
-    // Save to localStorage for persistence
-    localStorage.setItem("royaltySplitterSettings", JSON.stringify(settings));
+    // Persist via SettingsContext (saves to localStorage)
+    updateSettings(localSettings);
     showSaveStatus("✓ Settings saved successfully!");
   };
 
@@ -49,11 +43,9 @@ export const Settings: React.FC<SettingsProps> = ({ contractId }) => {
         displayCurrency: "XLM",
         maxPayoutsPerTransaction: 10,
         minPayoutAmount: 0.1,
-        enableEmailNotifications: false,
-        emailAddress: "",
       };
-      setSettings(defaults);
-      localStorage.removeItem("royaltySplitterSettings");
+      setLocalSettings(defaults);
+      updateSettings(defaults);
       showSaveStatus("✓ Settings reset to defaults!");
     }
   };
@@ -88,7 +80,7 @@ export const Settings: React.FC<SettingsProps> = ({ contractId }) => {
             </div>
             <select
               id="currency"
-              value={settings.displayCurrency}
+              value={localSettings.displayCurrency}
               onChange={(e) => handleChange("displayCurrency", e.target.value)}
               className="setting-select"
             >
@@ -131,7 +123,7 @@ export const Settings: React.FC<SettingsProps> = ({ contractId }) => {
               type="number"
               min="1"
               max="100"
-              value={settings.maxPayoutsPerTransaction}
+              value={localSettings.maxPayoutsPerTransaction}
               onChange={(e) =>
                 handleChange(
                   "maxPayoutsPerTransaction",
@@ -154,7 +146,7 @@ export const Settings: React.FC<SettingsProps> = ({ contractId }) => {
               type="number"
               min="0.1"
               step="0.1"
-              value={settings.minPayoutAmount}
+              value={localSettings.minPayoutAmount}
               onChange={(e) =>
                 handleChange("minPayoutAmount", parseFloat(e.target.value))
               }
@@ -171,12 +163,12 @@ export const Settings: React.FC<SettingsProps> = ({ contractId }) => {
             </div>
             <button
               className={`toggle-btn ${
-                settings.autoSaveAuditLog ? "active" : ""
+                localSettings.autoSaveAuditLog ? "active" : ""
               }`}
               onClick={() => handleToggle("autoSaveAuditLog")}
               id="autoSave"
             >
-              {settings.autoSaveAuditLog ? "ON" : "OFF"}
+              {localSettings.autoSaveAuditLog ? "ON" : "OFF"}
             </button>
           </div>
         </section>
@@ -185,60 +177,23 @@ export const Settings: React.FC<SettingsProps> = ({ contractId }) => {
         <section className="settings-section">
           <h2 className="section-title">Notifications</h2>
 
-          <div className="setting-item">
-            <div className="setting-label">
-              <label htmlFor="notifyDist">Notify on Distribution</label>
-              <p className="setting-description">
-                Send notification when distributions are processed
-              </p>
-            </div>
-            <button
-              className={`toggle-btn ${
-                settings.notifyOnDistribution ? "active" : ""
-              }`}
-              onClick={() => handleToggle("notifyOnDistribution")}
-              id="notifyDist"
-            >
-              {settings.notifyOnDistribution ? "ON" : "OFF"}
-            </button>
-          </div>
-
-          <div className="setting-item">
-            <div className="setting-label">
-              <label htmlFor="emailNotif">Email Notifications</label>
-              <p className="setting-description">
-                Receive email updates about your distributions
-              </p>
-            </div>
-            <button
-              className={`toggle-btn ${
-                settings.enableEmailNotifications ? "active" : ""
-              }`}
-              onClick={() => handleToggle("enableEmailNotifications")}
-              id="emailNotif"
-            >
-              {settings.enableEmailNotifications ? "ON" : "OFF"}
-            </button>
-          </div>
-
-          {settings.enableEmailNotifications && (
             <div className="setting-item">
               <div className="setting-label">
-                <label htmlFor="emailAddr">Email Address</label>
+                <label htmlFor="notifyDist">Notify on Distribution</label>
                 <p className="setting-description">
-                  Where to send notification emails
+                  Send notification when distributions are processed
                 </p>
               </div>
-              <input
-                id="emailAddr"
-                type="email"
-                value={settings.emailAddress}
-                onChange={(e) => handleChange("emailAddress", e.target.value)}
-                className="setting-input"
-                placeholder="your@email.com"
-              />
+              <button
+                className={`toggle-btn ${
+                  localSettings.notifyOnDistribution ? "active" : ""
+                }`}
+                onClick={() => handleToggle("notifyOnDistribution")}
+                id="notifyDist"
+              >
+                {localSettings.notifyOnDistribution ? "ON" : "OFF"}
+              </button>
             </div>
-          )}
         </section>
 
         {/* About Section */}

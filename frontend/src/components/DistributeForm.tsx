@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import { useSettings } from "../context/SettingsContext";
 import { signAndSubmitTransaction } from "../stellar";
 
 
@@ -14,6 +15,7 @@ export default function DistributeForm({
   walletAddress,
   onSuccess,
 }: Props) {
+  const { settings } = useSettings();
   const [tokenId, setTokenId] = useState("");
   const [amount, setAmount] = useState("");
   const [status, setStatus] = useState<{
@@ -27,6 +29,11 @@ export default function DistributeForm({
       return setStatus({ type: "error", msg: "Enter a contract ID first." });
     if (!tokenId || !amount)
       return setStatus({ type: "error", msg: "Fill in token and amount." });
+
+    const numeric = parseFloat(amount);
+    if (numeric < settings.minPayoutAmount) {
+      return setStatus({ type: "error", msg: `Amount is below minimum payout (${settings.minPayoutAmount}).` });
+    }
 
     setLoading(true);
     setStatus({ type: "info", msg: "Building transaction…" });

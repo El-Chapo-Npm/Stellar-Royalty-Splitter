@@ -13,6 +13,26 @@ import {
 } from "recharts";
 import { api } from "../api";
 import "./Dashboard.css";
+import { useSettings } from "../context/SettingsContext";
+
+function formatAmount(value: number, currency: string) {
+  if (currency === "XLM") {
+    return value.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }) + " XLM";
+  }
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: currency as any,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch (e) {
+    return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ` ${currency}`;
+  }
+}
 
 interface DashboardStats {
   totalDistributed: number;
@@ -32,6 +52,7 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ contractId }) => {
+  const { settings } = useSettings();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,16 +142,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ contractId }) => {
         <>
           {/* KPI Cards */}
           <div className="kpi-cards">
-            <div className="kpi-card kpi-distributed">
-              <div className="kpi-label">Total Distributed</div>
-              <div className="kpi-value">
-                {stats.totalDistributed.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+              <div className="kpi-card kpi-distributed">
+                <div className="kpi-label">Total Distributed</div>
+                <div className="kpi-value">
+                  {formatAmount(stats.totalDistributed, settings.displayCurrency)}
+                </div>
               </div>
-              <div className="kpi-unit">XLM</div>
-            </div>
 
             <div className="kpi-card kpi-transactions">
               <div className="kpi-label">Total Transactions</div>
@@ -141,10 +158,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ contractId }) => {
             <div className="kpi-card kpi-average">
               <div className="kpi-label">Average Payout</div>
               <div className="kpi-value">
-                {stats.averagePayout.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {formatAmount(stats.averagePayout, settings.displayCurrency)}
               </div>
               <div className="kpi-unit">per transaction</div>
             </div>
@@ -178,7 +192,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ contractId }) => {
                       type="monotone"
                       dataKey="amount"
                       stroke="#667eea"
-                      name="Total Amount (XLM)"
+                      name={`Total Amount (${settings.displayCurrency})`}
                       strokeWidth={2}
                       dot={{ fill: "#667eea", r: 4 }}
                     />
@@ -227,10 +241,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ contractId }) => {
                       </div>
                       <div className="earner-stats">
                         <span className="earner-amount">
-                          {earner.totalEarned.toLocaleString("en-US", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })} XLM
+                          {formatAmount(earner.totalEarned, settings.displayCurrency)}
                         </span>
                         <span className="earner-count">
                           {earner.payouts} payouts
@@ -274,10 +285,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ contractId }) => {
                           {collab.address.slice(-6)}
                         </td>
                         <td className="text-right">
-                          {collab.totalEarned.toLocaleString("en-US", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          {formatAmount(collab.totalEarned, settings.displayCurrency)}
                         </td>
                         <td className="text-right">{collab.payoutCount}</td>
                         <td className="text-right">
