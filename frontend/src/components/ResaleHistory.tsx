@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { api, SecondarySale } from "../api";
 import "./ResaleHistory.css";
+import { formatNumber } from "../utils/format";
+
 
 interface Props {
   contractId: string;
@@ -124,9 +126,9 @@ export default function ResaleHistory({ contractId }: Props) {
                         <td className="nft-id">
                           {sale.nftId.substring(0, 16)}...
                         </td>
-                        <td>{sale.salePrice}</td>
+                        <td>{formatNumber(sale.salePrice)}</td>
                         <td>{sale.royaltyRate / 100}%</td>
-                        <td className="royalty-amount">{sale.royaltyAmount}</td>
+                        <td className="royalty-amount">{formatNumber(sale.royaltyAmount)}</td>
                         <td className="address">
                           {sale.newOwner.substring(0, 8)}...
                         </td>
@@ -181,7 +183,7 @@ export default function ResaleHistory({ contractId }: Props) {
                     {distributions.map((dist) => (
                       <tr key={dist.id}>
                         <td className="amount">
-                          {dist.totalRoyaltiesDistributed}
+                          {formatNumber(dist.totalRoyaltiesDistributed)}
                         </td>
                         <td>{dist.numberOfSales}</td>
                         <td className={`status ${dist.status}`}>{dist.status}</td>

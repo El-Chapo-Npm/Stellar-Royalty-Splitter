@@ -14,25 +14,11 @@ import {
 import { api } from "../api";
 import "./Dashboard.css";
 import { useSettings } from "../context/SettingsContext";
+import { formatNumber, formatCurrency } from "../utils/format";
+import { DashboardSkeleton } from "./Skeleton";
 
-function formatAmount(value: number, currency: string) {
-  if (currency === "XLM") {
-    return value.toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }) + " XLM";
-  }
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency as any,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  } catch (e) {
-    return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ` ${currency}`;
-  }
-}
+
+
 
 interface DashboardStats {
   totalDistributed: number;
@@ -130,11 +116,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ contractId }) => {
         </div>
       </div>
 
-      {loading && (
-        <div className="loading">
-          <span className="spinner"></span> Loading analytics...
-        </div>
-      )}
+      {loading && <DashboardSkeleton />}
+
 
       {error && <div className="error-message">{error}</div>}
 
@@ -145,28 +128,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ contractId }) => {
               <div className="kpi-card kpi-distributed">
                 <div className="kpi-label">Total Distributed</div>
                 <div className="kpi-value">
-                  {formatAmount(stats.totalDistributed, settings.displayCurrency)}
+                  {formatCurrency(stats.totalDistributed, settings.displayCurrency)}
                 </div>
               </div>
-
+ 
             <div className="kpi-card kpi-transactions">
               <div className="kpi-label">Total Transactions</div>
-              <div className="kpi-value">{stats.totalTransactions}</div>
+              <div className="kpi-value">{formatNumber(stats.totalTransactions)}</div>
               <div className="kpi-unit">payouts</div>
             </div>
 
             <div className="kpi-card kpi-average">
               <div className="kpi-label">Average Payout</div>
               <div className="kpi-value">
-                {formatAmount(stats.averagePayout, settings.displayCurrency)}
+                {formatCurrency(stats.averagePayout, settings.displayCurrency)}
               </div>
               <div className="kpi-unit">per transaction</div>
             </div>
-
+ 
             <div className="kpi-card kpi-collaborators">
               <div className="kpi-label">Active Collaborators</div>
               <div className="kpi-value">
-                {stats.collaboratorStats.length}
+                {formatNumber(stats.collaboratorStats.length)}
               </div>
               <div className="kpi-unit">unique addresses</div>
             </div>
@@ -184,7 +167,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ contractId }) => {
                     <YAxis />
                     <Tooltip
                       formatter={(value) =>
-                        typeof value === "number" ? value.toFixed(2) : value
+                        typeof value === "number" ? formatCurrency(value, settings.displayCurrency) : value
                       }
                     />
                     <Legend />
@@ -241,10 +224,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ contractId }) => {
                       </div>
                       <div className="earner-stats">
                         <span className="earner-amount">
-                          {formatAmount(earner.totalEarned, settings.displayCurrency)}
+                          {formatCurrency(earner.totalEarned, settings.displayCurrency)}
                         </span>
                         <span className="earner-count">
-                          {earner.payouts} payouts
+                          {formatNumber(earner.payouts)} payouts
                         </span>
                       </div>
                     </div>
@@ -284,16 +267,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ contractId }) => {
                           {collab.address.slice(-6)}
                         </td>
                         <td className="text-right">
-                          {formatAmount(collab.totalEarned, settings.displayCurrency)}
+                          {formatCurrency(collab.totalEarned, settings.displayCurrency)}
                         </td>
-                        <td className="text-right">{collab.payoutCount}</td>
+                        <td className="text-right">{formatNumber(collab.payoutCount)}</td>
                         <td className="text-right">
                           {collab.payoutCount > 0
-                            ? (collab.totalEarned / collab.payoutCount).toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })
-                            : "0.00"}
+                            ? formatCurrency(collab.totalEarned / collab.payoutCount, settings.displayCurrency)
+                            : formatCurrency(0, settings.displayCurrency)}
                         </td>
                       </tr>
                     ))

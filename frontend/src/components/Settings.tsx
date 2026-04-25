@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTheme } from "../context/ThemeContext";
-import { useSettings } from "../context/SettingsContext";
+import { useSettings, SettingsType } from "../context/SettingsContext";
+
 import "./Settings.css";
 
 interface SettingsProps {
@@ -38,7 +39,7 @@ export const Settings: React.FC<SettingsProps> = ({ contractId, onClearContract 
 
   const handleReset = () => {
     if (window.confirm("Reset all settings to defaults?")) {
-      const defaults = {
+      const defaults: SettingsType = {
         autoSaveAuditLog: true,
         notifyOnDistribution: true,
         displayCurrency: "XLM",
