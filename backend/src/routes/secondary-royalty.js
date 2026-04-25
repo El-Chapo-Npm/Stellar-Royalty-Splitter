@@ -136,7 +136,7 @@ secondaryRoyaltyRouter.post("/set-rate", validate(setRoyaltyRateSchema), async (
       return res.status(400).json({ error: "Missing required fields." });
     }
 
-    if (royaltyRate < 0 || royaltyRate > 10000) {
+    if (!Number.isInteger(royaltyRate) || royaltyRate < 0 || royaltyRate > 10000) {
       return res
         .status(400)
         .json({ error: "Royalty rate must be between 0 and 10000 basis points." });
