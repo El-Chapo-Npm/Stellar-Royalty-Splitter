@@ -40,7 +40,6 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState(
     () => localStorage.getItem("srs_currentPage") ?? "dashboard"
   );
-    const contractIdValid = isValidContractId(contractId);
 
   function handlePageChange(page: string) {
     localStorage.setItem("srs_currentPage", page);
