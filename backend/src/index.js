@@ -68,23 +68,35 @@ const writeLimiter = rateLimit({
 app.use(generalLimiter);
 app.use(express.json({ limit: "10kb" }));
 
-// Apply write limiter to mutating endpoints
-app.use("/api/initialize", writeLimiter);
-app.use("/api/distribute", writeLimiter);
-app.use("/api/secondary-royalty", writeLimiter);
+// Enforce Content-Type: application/json on POST requests
+app.use((req, res, next) => {
+  if (req.method === "POST" && !req.is("application/json")) {
+    return res.status(415).json({ error: "Content-Type must be application/json" });
+  }
+  next();
+});
 
-app.use("/api/initialize", initializeRouter);
-app.use("/api/distribute", distributeRouter);
-app.use("/api/collaborators", collaboratorsRouter);
-app.use("/api/secondary-royalty", secondaryRoyaltyRouter);
-app.use("/api", historyRouter);
-app.use("/api", analyticsRouter);
-app.use("/api/contract", contractRouter);
+// Apply write limiter to mutating endpoints
+app.use("/api/v1/initialize", writeLimiter);
+app.use("/api/v1/distribute", writeLimiter);
+app.use("/api/v1/secondary-royalty", writeLimiter);
+
+app.use("/api/v1/initialize", initializeRouter);
+app.use("/api/v1/distribute", distributeRouter);
+app.use("/api/v1/collaborators", collaboratorsRouter);
+app.use("/api/v1/secondary-royalty", secondaryRoyaltyRouter);
+app.use("/api/v1", historyRouter);
+app.use("/api/v1", analyticsRouter);
 
 // Health check
-app.get("/api/health", (_req, res) =>
+app.get("/api/v1/health", (_req, res) =>
   res.json({ ok: true, dbVersion: getMigrationVersion() }),
 );
+
+// Legacy /api/* redirect to /api/v1/*
+app.use("/api", (req, res) => {
+  res.redirect(308, `/api/v1${req.url}`);
+});
 
 // Central error handler
 app.use((err, _req, res, _next) => {
