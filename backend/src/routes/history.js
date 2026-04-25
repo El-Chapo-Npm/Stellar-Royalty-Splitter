@@ -80,9 +80,14 @@ router.post('/transaction/confirm/:txHash', async (req, res) => {
     const { txHash } = req.params;
     const { blockTime, errorMessage } = req.body;
 
-    // Prevent overwriting already-settled transactions
+    // Return 404 if transaction does not exist
     const existing = getTransactionDetails(txHash);
-    if (existing && existing.status !== 'pending') {
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Transaction not found' });
+    }
+
+    // Prevent overwriting already-settled transactions
+    if (existing.status !== 'pending') {
       return res.status(409).json({
         success: false,
         error: `Transaction already ${existing.status}`
