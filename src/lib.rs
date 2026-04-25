@@ -136,6 +136,10 @@ impl RoyaltySplitter {
             .expect("contract not initialized");
 
         admin.require_auth();
+        
+        if Self::get_total_shares(env.clone()) != 10_000 {
+            panic!("total shares must sum to 10000");
+        }
 
         let token_client =
             token::Client::new(&env, &token);
@@ -443,5 +447,19 @@ impl RoyaltySplitter {
             .instance()
             .get(&DataKey::SecondaryPool)
             .unwrap_or(0)
+    }
+
+    pub fn get_total_shares(env: Env) -> u32 {
+        let share_map: Map<Address, u32> = env
+            .storage()
+            .instance()
+            .get(&DataKey::ShareMap)
+            .expect("contract not initialized");
+
+        let mut total = 0;
+        for item in share_map.iter() {
+            total += item.1;
+        }
+        total
     }
 }
