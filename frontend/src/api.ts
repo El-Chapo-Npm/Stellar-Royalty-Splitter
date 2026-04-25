@@ -252,4 +252,7 @@ export const api = {
     get<{ contractId: string; version: string }>(
       `/contract/version/${contractId}`,
     ),
+
+  getContractBalance: (contractId: string, tokenId: string) =>
+    get<{ balance: string }>(`/contract/balance/${contractId}?tokenId=${encodeURIComponent(tokenId)}`),
 };

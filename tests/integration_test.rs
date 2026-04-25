@@ -146,5 +146,33 @@ fn test_zero_share_rejected() {
     client.initialize(&vec![&env, a, b], &vec![&env, 10000_u32, 0_u32]);
 }
 
+// #132: get_share panics for unknown addresses
+#[test]
+#[should_panic(expected = "collaborator not found")]
+fn test_get_share_panics_for_unknown_address() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, client) = setup(&env);
 
+    let a = Address::generate(&env);
+    let unknown = Address::generate(&env);
 
+    client.initialize(&vec![&env, a], &vec![&env, 10000_u32]);
+    client.get_share(&unknown);
+}
+
+// #132: is_collaborator returns true for known, false for unknown
+#[test]
+fn test_is_collaborator() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, client) = setup(&env);
+
+    let a = Address::generate(&env);
+    let unknown = Address::generate(&env);
+
+    client.initialize(&vec![&env, a.clone()], &vec![&env, 10000_u32]);
+
+    assert!(client.is_collaborator(&a));
+    assert!(!client.is_collaborator(&unknown));
+}

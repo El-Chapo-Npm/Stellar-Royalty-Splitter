@@ -28,6 +28,51 @@ export function initializeDatabase() {
       version: 1,
       sql: `/* initial schema — already applied via CREATE TABLE IF NOT EXISTS */`,
     },
+    {
+      // #133: enforce FK constraints on existing databases by recreating
+      // distribution_payouts and secondary_royalty_distributions with
+      // ON DELETE CASCADE. SQLite doesn't support ADD CONSTRAINT, so we
+      // use the rename-create-copy-drop pattern inside a transaction.
+      version: 2,
+      sql: `
+        PRAGMA foreign_keys = OFF;
+
+        BEGIN;
+
+        CREATE TABLE IF NOT EXISTS distribution_payouts_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          transactionId INTEGER NOT NULL,
+          contractId TEXT NOT NULL DEFAULT '',
+          collaboratorAddress TEXT NOT NULL,
+          amountReceived TEXT NOT NULL,
+          FOREIGN KEY(transactionId) REFERENCES transactions(id) ON DELETE CASCADE
+        );
+        INSERT OR IGNORE INTO distribution_payouts_new
+          SELECT id, transactionId, contractId, collaboratorAddress, amountReceived
+          FROM distribution_payouts;
+        DROP TABLE distribution_payouts;
+        ALTER TABLE distribution_payouts_new RENAME TO distribution_payouts;
+
+        CREATE TABLE IF NOT EXISTS secondary_royalty_distributions_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          transactionId INTEGER NOT NULL,
+          contractId TEXT NOT NULL,
+          totalRoyaltiesDistributed TEXT NOT NULL,
+          numberOfSales INTEGER NOT NULL,
+          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(transactionId) REFERENCES transactions(id) ON DELETE CASCADE
+        );
+        INSERT OR IGNORE INTO secondary_royalty_distributions_new
+          SELECT id, transactionId, contractId, totalRoyaltiesDistributed, numberOfSales, timestamp
+          FROM secondary_royalty_distributions;
+        DROP TABLE secondary_royalty_distributions;
+        ALTER TABLE secondary_royalty_distributions_new RENAME TO secondary_royalty_distributions;
+
+        COMMIT;
+
+        PRAGMA foreign_keys = ON;
+      `,
+    },
   ];
 
   const applied = db

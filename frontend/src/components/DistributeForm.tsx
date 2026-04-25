@@ -1,7 +1,6 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { api } from "../api";
 import { signAndSubmitTransaction } from "../stellar";
-
 
 interface Props {
   contractId: string;
@@ -15,17 +14,49 @@ export default function DistributeForm({
   onSuccess,
 }: Props) {
   const [tokenId, setTokenId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [contractBalance, setContractBalance] = useState<string | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
   const [status, setStatus] = useState<{
     type: "ok" | "error" | "info";
     msg: string;
   } | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Fetch contract balance whenever tokenId changes (debounced)
+  useEffect(() => {
+    if (!contractId || !tokenId) {
+      setContractBalance(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setBalanceLoading(true);
+      try {
+        const res = await api.getContractBalance(contractId, tokenId);
+        setContractBalance(res.balance);
+      } catch {
+        setContractBalance(null);
+      } finally {
+        setBalanceLoading(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [contractId, tokenId]);
+
+  const parsedAmount = parseFloat(amount);
+  const parsedBalance = contractBalance !== null ? parseFloat(contractBalance) : null;
+  const exceedsBalance =
+    parsedBalance !== null && !isNaN(parsedAmount) && parsedAmount > parsedBalance;
+
   async function submit() {
     if (!contractId)
       return setStatus({ type: "error", msg: "Enter a contract ID first." });
     if (!tokenId)
       return setStatus({ type: "error", msg: "Enter a token address." });
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0)
+      return setStatus({ type: "error", msg: "Enter a valid amount." });
+    if (exceedsBalance)
+      return setStatus({ type: "error", msg: "Amount exceeds contract balance." });
 
     setLoading(true);
     setStatus({ type: "info", msg: "Building transaction…" });
@@ -58,10 +89,38 @@ export default function DistributeForm({
       <input
         placeholder="C..."
         value={tokenId}
-        onChange={(e) => setTokenId(e.target.value)}
+        onChange={(e) => { setTokenId(e.target.value); setAmount(""); }}
       />
-      <p className="description">Distributes the full contract balance to all collaborators.</p>
-      <button className="btn-primary" onClick={submit} disabled={loading}>
+      {tokenId && (
+        <p className="description">
+          {balanceLoading
+            ? "Fetching balance…"
+            : contractBalance !== null
+            ? `Available balance: ${contractBalance}`
+            : "Could not fetch balance."}
+        </p>
+      )}
+      <label>Amount</label>
+      <input
+        type="number"
+        placeholder="0"
+        min="0"
+        max={contractBalance ?? undefined}
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        disabled={contractBalance === null}
+      />
+      {exceedsBalance && (
+        <p className="description" style={{ color: "var(--error, red)" }}>
+          Amount exceeds available balance of {contractBalance}.
+        </p>
+      )}
+      <p className="description">Distributes the specified amount to all collaborators.</p>
+      <button
+        className="btn-primary"
+        onClick={submit}
+        disabled={loading || exceedsBalance || !amount}
+      >
         {loading ? "Submitting…" : "Distribute funds"}
       </button>
       {status && <div className={`status ${status.type}`}>{status.msg}</div>}

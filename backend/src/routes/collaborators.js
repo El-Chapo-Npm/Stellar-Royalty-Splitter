@@ -8,6 +8,7 @@ import {
   Account,
 } from "@stellar/stellar-sdk";
 import { server, networkPassphrase, addressToScVal } from "../stellar.js";
+import logger from "../logger.js";
 
 export const collaboratorsRouter = Router();
 
@@ -47,9 +48,27 @@ collaboratorsRouter.get("/:contractId", async (req, res, next) => {
     const addresses =
       resultVal.vec()?.map((scv) => Address.fromScVal(scv).toString()) ?? [];
 
-    // Fetch share for each address
-    const results = await Promise.all(
+    // Fetch share for each address — use allSettled so a single RPC failure
+    // doesn't abort the entire request (#130)
+    const settled = await Promise.allSettled(
       addresses.map(async (addr) => {
+        // #132: validate address is a known collaborator before calling get_share
+        const isCollabTx = new TransactionBuilder(dummyAccount, {
+          fee: BASE_FEE,
+          networkPassphrase,
+        })
+          .addOperation(contract.call("is_collaborator", addressToScVal(addr)))
+          .setTimeout(30)
+          .build();
+
+        const isCollabSim = await server.simulateTransaction(isCollabTx);
+        const isCollab = !SorobanRpc.Api.isSimulationError(isCollabSim) &&
+          (isCollabSim.result?.retval?.bool() ?? false);
+
+        if (!isCollab) {
+          throw new Error(`${addr} is not a registered collaborator`);
+        }
+
         const shareTx = new TransactionBuilder(dummyAccount, {
           fee: BASE_FEE,
           networkPassphrase,
@@ -59,13 +78,18 @@ collaboratorsRouter.get("/:contractId", async (req, res, next) => {
           .build();
 
         const shareSim = await server.simulateTransaction(shareTx);
-        const bp = SorobanRpc.Api.isSimulationError(shareSim)
-          ? 0
-          : (shareSim.result?.retval?.u32() ?? 0);
-
-        return { address: addr, basisPoints: bp };
+        if (SorobanRpc.Api.isSimulationError(shareSim)) {
+          throw new Error(shareSim.error);
+        }
+        return { address: addr, basisPoints: shareSim.result?.retval?.u32() ?? 0, status: "success" };
       }),
     );
+
+    const results = settled.map((result, i) => {
+      if (result.status === "fulfilled") return result.value;
+      logger.warn(`Failed to fetch share for ${addresses[i]}: ${result.reason?.message ?? result.reason}`);
+      return { address: addresses[i], basisPoints: 0, status: "failed" };
+    });
 
     res.json(results);
   } catch (err) {

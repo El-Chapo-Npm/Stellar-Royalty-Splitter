@@ -412,87 +412,47 @@ impl RoyaltySplitter {
         env: Env,
         collaborator: Address,
     ) -> u32 {
-
-        client.initialize(&vec![&env, admin.clone(), b.clone()], &vec![&env, 5000_u32, 5000_u32]);
-        mint(&env, &token, &contract_id, 1000);
-        client.distribute(&token);
+        let share_map: Map<Address, u32> = env
+            .storage()
+            .instance()
+            .get(&DataKey::ShareMap)
+            .expect("contract not initialized");
 
         share_map
             .get(collaborator)
-            .unwrap_or(0)
+            .expect("collaborator not found")
+    }
+
+    /// Returns true if the given address is a registered collaborator.
+    pub fn is_collaborator(
+        env: Env,
+        addr: Address,
+    ) -> bool {
+        let share_map: Map<Address, u32> = env
+            .storage()
+            .instance()
+            .get(&DataKey::ShareMap)
+            .unwrap_or(Map::new(&env));
+
+        share_map.contains_key(addr)
     }
 
     pub fn get_collaborators(
         env: Env,
     ) -> Vec<Address> {
-
-    #[test]
-    #[should_panic(expected = "no balance to distribute")]
-    fn test_distribute_panics_when_balance_is_zero() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (_, client) = setup(&env);
-
-        let admin = Address::generate(&env);
-        let b = Address::generate(&env);
-        let token_admin = Address::generate(&env);
-        let token = make_token(&env, &token_admin);
-
-        client.initialize(&vec![&env, admin.clone(), b.clone()], &vec![&env, 5000_u32, 5000_u32]);
-        // No mint — balance is zero
-        client.distribute(&token);
-    }
-
-    #[test]
-    fn test_distribute_uses_actual_balance() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (contract_id, client) = setup(&env);
-
-        let admin = Address::generate(&env);
-        let b = Address::generate(&env);
-        let c = Address::generate(&env);
-        let token_admin = Address::generate(&env);
-        let token = make_token(&env, &token_admin);
-
-        client.initialize(
-            &vec![&env, admin.clone(), b.clone(), c.clone()],
-            &vec![&env, 5000_u32, 3000_u32, 2000_u32],
-        );
-
-        // Fund 300 — distribute uses actual balance, not a caller-supplied amount.
-        mint(&env, &token, &contract_id, 300);
-        client.distribute(&token);
-
-        assert_eq!(TokenClient::new(&env, &token).balance(&admin), 150);
-        assert_eq!(TokenClient::new(&env, &token).balance(&b), 90);
-        assert_eq!(TokenClient::new(&env, &token).balance(&c), 60);
+        env.storage()
+            .instance()
+            .get(&DataKey::Collaborators)
+            .unwrap_or(Vec::new(&env))
     }
 
     pub fn get_secondary_pool(
         env: Env,
     ) -> i128 {
-
-    #[test]
-    #[should_panic(expected = "pool exceeds contract balance")]
-    fn test_distribute_secondary_panics_when_pool_exceeds_balance() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (contract_id, client) = setup(&env);
-
-        let admin = Address::generate(&env);
-        let b = Address::generate(&env);
-        let token_admin = Address::generate(&env);
-        let token = make_token(&env, &token_admin);
-
-        client.initialize(&vec![&env, admin.clone(), b.clone()], &vec![&env, 5000_u32, 5000_u32]);
-
-        // Fund contract, record secondary royalty (pool = 100, balance = 100),
-        // then drain balance via primary distribute — pool > balance.
-        mint(&env, &token, &contract_id, 100);
-        client.record_secondary_royalty(&token, &contract_id, &100_i128);
-        client.distribute(&token); // balance → 0, pool still = 100
-        client.distribute_secondary_royalties(); // should panic
+        env.storage()
+            .instance()
+            .get(&DataKey::SecondaryPool)
+            .unwrap_or(0)
     }
 
     pub fn get_total_shares(env: Env) -> u32 {
