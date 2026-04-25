@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 
-interface SettingsType {
+export interface SettingsType {
   autoSaveAuditLog: boolean;
   notifyOnDistribution: boolean;
   displayCurrency: "XLM" | "USD" | "EUR";

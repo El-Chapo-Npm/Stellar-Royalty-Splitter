@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { api, TransactionRecord } from "../api";
 import "./TransactionHistory.css";
+import { formatNumber } from "../utils/format";
+
 
 interface TransactionHistoryProps {
   contractId: string;
@@ -110,7 +112,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                     <td title={tx.initiatorAddress}>
                       {truncateAddress(tx.initiatorAddress)}
                     </td>
-                    <td>{tx.requestedAmount || "—"}</td>
+                    <td>{tx.requestedAmount ? formatNumber(tx.requestedAmount) : "—"}</td>
                     <td title={tx.txHash || undefined} className="tx-hash-cell">
                       {truncateHash(tx.txHash)}
                     </td>

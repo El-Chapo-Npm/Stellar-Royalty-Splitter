@@ -1,26 +1,31 @@
 import { Router } from "express";
-import {
-  Contract,
-  SorobanRpc,
-  TransactionBuilder,
-  BASE_FEE,
-  Account,
-} from "@stellar/stellar-sdk";
-import { server, networkPassphrase } from "../stellar.js";
+import { isContractInitialized } from "../stellar.js";
 
 export const contractRouter = Router();
 
+contractRouter.get("/status/:contractId", async (req, res, next) => {
+  try {
+    const { contractId } = req.params;
+    if (!contractId || !/^C[A-Z2-7]{55}$/.test(contractId)) {
+      return res.status(400).json({ error: "Invalid contract ID" });
+    }
+    const initialized = await isContractInitialized(contractId);
+    res.json({ initialized });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /**
- * GET /api/contract/version/:contractId
- * Returns the contract version stored on-chain via simulation.
- * Response: { contractId, version: string }
+ * GET /api/contract/shares-total/:contractId
+ * Returns the sum of all collaborator shares via simulation.
+ * Response: { contractId, totalShares: number }
  */
-contractRouter.get("/version/:contractId", async (req, res, next) => {
+contractRouter.get("/shares-total/:contractId", async (req, res, next) => {
   try {
     const { contractId } = req.params;
     const contract = new Contract(contractId);
 
-    // Simulate version() call (read-only, no signing required)
     const dummyAccount = new Account(
       "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN",
       "0",
@@ -29,29 +34,21 @@ contractRouter.get("/version/:contractId", async (req, res, next) => {
       fee: BASE_FEE,
       networkPassphrase,
     })
-      .addOperation(contract.call("version"))
+      .addOperation(contract.call("get_total_shares"))
       .setTimeout(30)
       .build();
 
     const sim = await server.simulateTransaction(tx);
     if (SorobanRpc.Api.isSimulationError(sim)) {
-      const errorMsg = sim.error?.toString() || '';
-      if (errorMsg.includes('not initialized')) {
-        return res.status(404).json({ error: 'Contract not initialized' });
-      }
       return res.status(400).json({ error: sim.error });
     }
 
-    // Parse the returned String
     const resultVal = sim.result?.retval;
-    if (!resultVal) {
-      return res.status(404).json({ error: "Version not found" });
-    }
+    const totalShares = resultVal?.u32() ?? 0;
 
-    const version = resultVal.string()?.toString() ?? "unknown";
-
-    res.json({ contractId, version });
+    res.json({ contractId, totalShares });
   } catch (err) {
     next(err);
   }
 });
+
