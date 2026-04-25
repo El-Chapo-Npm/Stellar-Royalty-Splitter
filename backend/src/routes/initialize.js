@@ -25,13 +25,13 @@ initializeRouter.post("/", validate(initializeSchema), async (req, res, next) =>
     if (collaborators.length !== shares.length) {
       return res
         .status(400)
-        .json({ error: "collaborators and shares length mismatch." });
+        .json({ error: "Collaborators and shares arrays must be the same length" });
     }
     const total = shares.reduce((s, n) => s + n, 0);
     if (total !== 10_000) {
       return res
         .status(400)
-        .json({ error: `Shares must sum to 10000 bp (got ${total}).` });
+        .json({ error: "Shares must sum to 10000 basis points" });
     }
 
     // Record transaction in database for audit trail
