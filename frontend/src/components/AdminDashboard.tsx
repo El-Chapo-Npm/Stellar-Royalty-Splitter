@@ -13,10 +13,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [copied, setCopied] = useState(false);
   const [initHistory, setInitHistory] = useState<TransactionRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [contractVersion, setContractVersion] = useState<string>("loading...");
 
   useEffect(() => {
     if (contractId) {
       loadInitializeHistory();
+      loadContractVersion();
     }
   }, [contractId]);
 
@@ -35,6 +37,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       console.error("Error loading initialize history:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadContractVersion = async () => {
+    try {
+      const response = await api.getContractVersion(contractId);
+      setContractVersion(response.version);
+    } catch (err) {
+      console.error("Error loading contract version:", err);
+      setContractVersion("unknown");
     }
   };
 
@@ -78,6 +90,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             >
               {copied ? "✓ Copied" : "📋 Copy"}
             </button>
+          </div>
+        </div>
+
+        <div className="contract-version-display">
+          <div className="contract-version-label">Contract Version</div>
+          <div className="contract-version-value">
+            <code>v{contractVersion}</code>
           </div>
         </div>
 
@@ -168,6 +187,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button onClick={copyToClipboard} className="copy-modal-btn">
                     📋 Copy
                   </button>
+                </div>
+              </div>
+
+              <div className="detail-block">
+                <h3>Contract Version</h3>
+                <div className="version-info-block">
+                  <code>v{contractVersion}</code>
                 </div>
               </div>
 

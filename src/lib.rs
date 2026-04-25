@@ -1,6 +1,6 @@
 #![no_std]
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, token, Address, Env, Map, Vec,
+    contract, contractimpl, contracttype, symbol_short, token, Address, Env, Map, Vec, String,
 };
 
 #[contracttype]
@@ -12,6 +12,8 @@ pub enum DataKey {
     SecondaryRoyaltyPool,
     SecondaryPool,
     SecondaryToken,
+    ContractVersion,
+    RoyaltyRate,
 }
 
 #[contract]
@@ -50,12 +52,26 @@ impl RoyaltySplitter {
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Collaborators, &collaborators);
         env.storage().instance().set(&DataKey::ShareMap, &share_map);
+        
+        // Store contract version from CARGO_PKG_VERSION
+        let version = String::from_str(&env, env!("CARGO_PKG_VERSION"));
+        env.storage().instance().set(&DataKey::ContractVersion, &version);
     }
 
     pub fn set_royalty_rate(env: Env, new_rate: u32) {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("contract not initialized");
+        admin.require_auth();
+        
         if new_rate > 10_000 {
             panic!("royalty rate cannot exceed 10000 basis points");
         }
+        
+        env.storage().instance().set(&DataKey::RoyaltyRate, &new_rate);
+    }
     /// Distribute `amount` of `token` from the contract balance to all collaborators.
     pub fn distribute(env: Env, token: Address, amount: i128) {
         let admin: Address = env
@@ -136,16 +152,6 @@ impl RoyaltySplitter {
 
     /// Distribute the accumulated secondary royalty pool to all collaborators.
     pub fn distribute_secondary_royalties(env: Env) {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .expect("contract not initialized");
-        admin.require_auth();
-        if total_amount <= 0 {
-            panic!("amount must be positive");
-        }
-        let rate: u32 = env.storage().instance().get(&DataKey::RoyaltyRate).unwrap_or(0);
 
         let pool: i128 = env
             .storage()
@@ -211,6 +217,16 @@ impl RoyaltySplitter {
 
     pub fn get_royalty_rate(env: Env) -> u32 {
         env.storage().instance().get(&DataKey::RoyaltyRate).unwrap_or(0)
+    }
+
+    /// Returns the contract version stored on-chain
+    pub fn version(env: Env) -> String {
+        env.storage()
+            .instance()
+            .get(&DataKey::ContractVersion)
+            .expect("contract not initialized")
+    }
+
     pub fn get_share(env: Env, collaborator: Address) -> u32 {
         let share_map: Map<Address, u32> = env
             .storage()
@@ -280,6 +296,22 @@ mod tests {
         let shares = vec![&env, 5000_u32, 5000_u32];
         client.initialize(&collaborators, &shares);
         assert_eq!(client.get_admin(), a);
+    }
+
+    #[test]
+    fn test_version_returns_cargo_pkg_version() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (_, client) = setup(&env);
+        let a = Address::generate(&env);
+        let b = Address::generate(&env);
+        let collaborators = vec![&env, a.clone(), b.clone()];
+        let shares = vec![&env, 5000_u32, 5000_u32];
+        client.initialize(&collaborators, &shares);
+        
+        // Version should match CARGO_PKG_VERSION from Cargo.toml (0.1.0)
+        let version = client.version();
+        assert_eq!(version.to_string(), "0.1.0");
     }
 
     #[test]
