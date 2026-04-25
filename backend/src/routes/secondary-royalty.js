@@ -11,6 +11,8 @@ import {
   recordSecondarySale,
   recordSecondaryRoyaltyDistribution,
   getSecondarySales,
+  countSecondarySales,
+  markSalesDistributed,
   getSecondaryRoyaltyDistributions,
   getRoyaltyStatistics,
   updateTransactionHash,
@@ -195,8 +197,8 @@ secondaryRoyaltyRouter.post("/distribute", async (req, res, next) => {
       return res.status(400).json({ error: "Missing required fields." });
     }
 
-    // Get pending secondary sales
-    const pendingSales = getSecondarySales(contractId);
+    // Get pending (undistributed) secondary sales
+    const pendingSales = getSecondarySales(contractId, 1000, 0, null, true);
 
     if (pendingSales.length === 0) {
       return res.status(400).json({ error: "No pending secondary royalties to distribute." });
@@ -218,6 +220,9 @@ secondaryRoyaltyRouter.post("/distribute", async (req, res, next) => {
     const txXdr = await buildTx(walletAddress, contractId, "distribute_secondary_royalties", [
       addressToScVal(tokenId),
     ]);
+
+    // Mark sales as distributed
+    markSalesDistributed(pendingSales.map((s) => s.id));
 
     addAuditLog(contractId, "secondary_distribution_initiated", walletAddress, {
       transactionId,
@@ -281,8 +286,9 @@ secondaryRoyaltyRouter.get("/sales/:contractId", (req, res, next) => {
 
     const { nftId } = req.query;
     const sales = getSecondarySales(contractId, limit, offset, nftId);
+    const total = countSecondarySales(contractId, nftId);
 
-    res.json({ sales, total: sales.length });
+    res.json({ sales, total });
   } catch (err) {
     next(err);
   }

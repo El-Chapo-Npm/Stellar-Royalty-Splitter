@@ -5,7 +5,7 @@ import {
   TransactionBuilder,
   BASE_FEE,
   Account,
-  xdr,
+  Address,
 } from "@stellar/stellar-sdk";
 import { server, networkPassphrase, addressToScVal } from "../stellar.js";
 
@@ -45,9 +45,7 @@ collaboratorsRouter.get("/:contractId", async (req, res, next) => {
     if (!resultVal) return res.json([]);
 
     const addresses =
-      resultVal.vec()?.map((scv) => {
-        return scv.address().accountId().ed25519().toString("hex");
-      }) ?? [];
+      resultVal.vec()?.map((scv) => Address.fromScVal(scv).toString()) ?? [];
 
     // Fetch share for each address
     const results = await Promise.all(
