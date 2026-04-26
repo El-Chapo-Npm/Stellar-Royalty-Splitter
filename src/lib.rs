@@ -17,6 +17,9 @@ pub enum DataKey {
     RoyaltyRate,
 }
 
+const MIN_TTL: u32 = 17_280;
+const MAX_TTL: u32 = 34_560;
+
 #[contract]
 pub struct RoyaltySplitter;
 
@@ -35,6 +38,10 @@ impl RoyaltySplitter {
         if collaborators.is_empty() {
             panic!("need at least one collaborator");
         }
+
+        // The first collaborator is the admin and must sign the init tx,
+        // preventing any third party from front-running initialization.
+        collaborators.get(0).unwrap().require_auth();
 
         if collaborators.len() != shares.len() {
             panic!("collaborators and shares length mismatch");
@@ -107,6 +114,7 @@ impl RoyaltySplitter {
         env: Env,
         new_rate: u32,
     ) {
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
 
         let admin: Address = env
             .storage()
@@ -126,20 +134,28 @@ impl RoyaltySplitter {
                 &DataKey::RoyaltyRate,
                 &new_rate,
             );
+
+        env.events().publish(
+            (symbol_short!("royalty"), symbol_short!("rate_set")),
+            new_rate,
+        );
     }
 
     /// Returns true if the contract has been initialized.
     pub fn is_initialized(env: Env) -> bool {
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
         env.storage().instance().has(&DataKey::Admin)
     }
 
     /// Returns the contract's current balance of `token`.
     pub fn get_balance(env: Env, token: Address) -> i128 {
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
         token::Client::new(&env, &token).balance(&env.current_contract_address())
     }
 
     /// Distribute the full contract balance of `token` to all collaborators.
     pub fn distribute(env: Env, token: Address) {
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
         let admin: Address = env
             .storage()
             .instance()
@@ -222,6 +238,11 @@ impl RoyaltySplitter {
                 (addr, payout),
             );
         }
+
+        env.events().publish(
+            (symbol_short!("royalty"), symbol_short!("dist_all")),
+            (token, amount),
+        );
     }
 
     pub fn record_secondary_royalty(
@@ -230,7 +251,7 @@ impl RoyaltySplitter {
         from: Address,
         royalty_amount: i128,
     ) {
-
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
         from.require_auth();
 
         let token_client =
@@ -267,6 +288,7 @@ impl RoyaltySplitter {
     pub fn distribute_secondary_royalties(
         env: Env,
     ) {
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
 
         let admin: Address = env
             .storage()
@@ -366,12 +388,18 @@ impl RoyaltySplitter {
                 &DataKey::SecondaryPool,
                 &0_i128,
             );
+
+        env.events().publish(
+            (symbol_short!("royalty"), symbol_short!("sec_dist")),
+            (token, pool),
+        );
     }
 
     pub fn record_secondary_sale(
         env: Env,
         sale_price: i128,
     ) -> i128 {
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
 
         if sale_price <= 0 {
             panic!("sale price must be positive");
@@ -392,7 +420,7 @@ impl RoyaltySplitter {
     pub fn get_royalty_rate(
         env: Env,
     ) -> u32 {
-
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
         env.storage()
             .instance()
             .get(&DataKey::RoyaltyRate)
@@ -402,7 +430,7 @@ impl RoyaltySplitter {
     pub fn version(
         env: Env,
     ) -> String {
-
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
         env.storage()
             .instance()
             .get(&DataKey::ContractVersion)
@@ -413,6 +441,7 @@ impl RoyaltySplitter {
         env: Env,
         collaborator: Address,
     ) -> u32 {
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
         let share_map: Map<Address, u32> = env
             .storage()
             .instance()
@@ -429,6 +458,7 @@ impl RoyaltySplitter {
         env: Env,
         addr: Address,
     ) -> bool {
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
         let share_map: Map<Address, u32> = env
             .storage()
             .instance()
@@ -438,18 +468,39 @@ impl RoyaltySplitter {
         share_map.contains_key(addr)
     }
 
+    pub fn collaborator_count(env: Env) -> u32 {
+        let collaborators: Vec<Address> = env
+            .storage()
+            .instance()
+            .get(&DataKey::Collaborators)
+            .unwrap_or(Vec::new(&env));
+        collaborators.len()
+    }
+
     pub fn get_collaborators(
         env: Env,
     ) -> Vec<Address> {
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
         env.storage()
             .instance()
             .get(&DataKey::Collaborators)
             .unwrap_or(Vec::new(&env))
     }
 
+    /// Returns the full share map (Address → basis points) in a single call,
+    /// eliminating the need for N individual get_share simulations.
+    pub fn get_all_shares(env: Env) -> Map<Address, u32> {
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
+        env.storage()
+            .instance()
+            .get(&DataKey::ShareMap)
+            .unwrap_or(Map::new(&env))
+    }
+
     pub fn get_secondary_pool(
         env: Env,
     ) -> i128 {
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
         env.storage()
             .instance()
             .get(&DataKey::SecondaryPool)
@@ -457,6 +508,7 @@ impl RoyaltySplitter {
     }
 
     pub fn get_total_shares(env: Env) -> u32 {
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
         let share_map: Map<Address, u32> = env
             .storage()
             .instance()

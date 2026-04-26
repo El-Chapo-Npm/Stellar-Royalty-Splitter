@@ -42,7 +42,15 @@ export default function CollaboratorTable({ contractId, refreshKey }: Props) {
   if (!contractId) return null;
   if (loading) return <div className="card status info">Loading collaborators…</div>;
   if (error) return <div className="card status error">{error}</div>;
-  if (!collaborators.length) return null;
+  if (!collaborators.length)
+    return (
+      <div className="card">
+        <span className="badge">Collaborators</span>
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>
+          No collaborators found. Initialize the contract to add collaborators.
+        </p>
+      </div>
+    );
 
   const filtered = collaborators
     .filter((c) => c.address.toLowerCase().includes(search.toLowerCase()))
@@ -89,19 +97,23 @@ export default function CollaboratorTable({ contractId, refreshKey }: Props) {
           {filtered.map((c) => (
             <tr key={c.address}>
               <td>
-                <span style={{ marginRight: "0.4rem" }}>{c.address}</span>
+                <span title={c.address}>
+                  {c.address.slice(0, 8)}...{c.address.slice(-6)}
+                </span>
                 <button
-                  className="btn-add"
-                  style={{ padding: "0.1rem 0.4rem", fontSize: "0.75rem" }}
-                  onClick={() => copyAddress(c.address)}
+                  className="copy-btn-sm"
+                  onClick={() => navigator.clipboard.writeText(c.address)}
                   title="Copy address"
                 >
-                  {copied === c.address ? "✓" : "⎘"}
+                  ⧉
                 </button>
               </td>
-              <td>
-                {(c.basisPoints / 100).toFixed(2)}%
-                <div className="share-bar" style={{ width: `${c.basisPoints / 100}%` }} />
+              <td style={{ textAlign: "right" }}>
+                <span>{(c.basisPoints / 100).toFixed(2)}%</span>
+                <div
+                  className="share-bar"
+                  style={{ width: `${c.basisPoints / 100}%` }}
+                />
               </td>
             </tr>
           ))}

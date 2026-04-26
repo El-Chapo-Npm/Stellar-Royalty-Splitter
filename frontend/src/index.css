@@ -202,6 +202,25 @@ td:last-child {
   margin-top: 4px;
 }
 
+.copy-btn-sm {
+  margin-left: 6px;
+  padding: 2px 6px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  transition: all var(--transition-base);
+  vertical-align: middle;
+}
+
+.copy-btn-sm:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
 .wallet-row {
   display: flex;
   justify-content: space-between;
@@ -328,6 +347,31 @@ td:last-child {
 }
 
 .message.info {
+  background: var(--accent-primary-light);
+  color: var(--info);
+  border: 1px solid var(--info);
+}
+
+.form-status {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.form-status--ok {
+  background: #14532d;
+  color: #86efac;
+  border: 1px solid var(--success);
+}
+
+.form-status--error {
+  background: var(--error-light);
+  color: var(--error-dark);
+  border: 1px solid var(--error-color);
+}
+
+.form-status--info {
   background: var(--accent-primary-light);
   color: var(--info);
   border: 1px solid var(--info);

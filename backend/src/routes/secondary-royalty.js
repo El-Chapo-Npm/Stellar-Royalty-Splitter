@@ -16,7 +16,8 @@ import {
   getRoyaltyStatistics,
   addAuditLog,
 } from "../database.js";
-import { validate, recordSecondarySaleSchema, setRoyaltyRateSchema, validateContractId, validateContractIdMiddleware, parsePagination } from "../validation.js";
+import db from "../database.js";
+import { validate, recordSecondarySaleSchema, setRoyaltyRateSchema, validateContractId, parsePagination } from "../validation.js";
 
 export const secondaryRoyaltyRouter = Router();
 
@@ -71,37 +72,41 @@ secondaryRoyaltyRouter.post("/", validate(recordSecondarySaleSchema), async (req
       return res.status(400).json({ error: "Calculated royalty amount is zero." });
     }
 
-    // Record transaction in database
-    const transactionId = recordTransaction(
-      contractId,
-      "secondary_royalty",
-      walletAddress,
-      { salePrice: salePrice.toString(), nftId, saleToken, royaltyRate: onChainRate }
-    );
+    // Build XDR first — if this throws (e.g. RPC timeout) no DB record is written
+    const txXdr = await buildTx(walletAddress, contractId, "record_secondary_royalty", [
+      i128ToScVal(salePrice),
+    ]);
 
-    // Record the secondary sale (unique constraint prevents duplicates)
+    // XDR is ready — now atomically write both DB records so neither is
+    // orphaned if the other fails (unique-constraint violation rolls back both)
+    let transactionId;
     try {
-      recordSecondarySale(
-        contractId,
-        nftId,
-        previousOwner,
-        newOwner,
-        salePrice,
-        saleToken,
-        royaltyAmount,
-        onChainRate
-      );
+      const writeAtomic = db.transaction(() => {
+        const txId = recordTransaction(
+          contractId,
+          "secondary_royalty",
+          walletAddress,
+          { salePrice: salePrice.toString(), nftId, saleToken, royaltyRate: onChainRate }
+        );
+        recordSecondarySale(
+          contractId,
+          nftId,
+          previousOwner,
+          newOwner,
+          salePrice,
+          saleToken,
+          royaltyAmount,
+          onChainRate
+        );
+        return txId;
+      });
+      transactionId = writeAtomic();
     } catch (err) {
       if (err.code === "SQLITE_CONSTRAINT_UNIQUE") {
         return res.status(409).json({ error: "This sale has already been recorded." });
       }
       throw err;
     }
-
-    // Build transaction to record royalty in contract
-    const txXdr = await buildTx(walletAddress, contractId, "record_secondary_royalty", [
-      i128ToScVal(salePrice),
-    ]);
 
     // Log the secondary sale
     addAuditLog(contractId, "secondary_sale_recorded", walletAddress, {
