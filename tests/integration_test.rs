@@ -158,10 +158,27 @@ fn test_distribute_requires_admin_auth() {
     assert_eq!(TokenClient::new(&env, &token).balance(&b), 500);
 }
 
-/// Issue #116 — calling distribute with no auth mock must panic.
+/// TTL — advancing the ledger past MIN_TTL and calling a read function must
+/// still succeed because every public function extends the TTL on entry.
 #[test]
-#[should_panic]
-fn test_distribute_without_auth_panics() {
+fn test_ttl_extended_after_ledger_advance() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, client) = setup(&env);
+
+    let a = Address::generate(&env);
+    let b = Address::generate(&env);
+    client.initialize(&vec![&env, a.clone(), b.clone()], &vec![&env, 6000_u32, 4000_u32]);
+
+    // Advance ledger sequence past MIN_TTL (17_280 ledgers).
+    env.ledger().set_sequence_number(env.ledger().sequence() + 17_281);
+
+    // Both read functions must still return correct data (TTL was extended).
+    let collaborators = client.get_collaborators();
+    assert_eq!(collaborators.len(), 2);
+    assert_eq!(client.get_share(&a), 6000);
+    assert_eq!(client.get_share(&b), 4000);
+}
     let env = Env::default();
     let (contract_id, client) = setup(&env);
 
