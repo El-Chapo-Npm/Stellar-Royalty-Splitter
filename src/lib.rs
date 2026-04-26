@@ -39,6 +39,10 @@ impl RoyaltySplitter {
             panic!("need at least one collaborator");
         }
 
+        // The first collaborator is the admin and must sign the init tx,
+        // preventing any third party from front-running initialization.
+        collaborators.get(0).unwrap().require_auth();
+
         if collaborators.len() != shares.len() {
             panic!("collaborators and shares length mismatch");
         }
@@ -447,6 +451,15 @@ impl RoyaltySplitter {
             .unwrap_or(Map::new(&env));
 
         share_map.contains_key(addr)
+    }
+
+    pub fn collaborator_count(env: Env) -> u32 {
+        let collaborators: Vec<Address> = env
+            .storage()
+            .instance()
+            .get(&DataKey::Collaborators)
+            .unwrap_or(Vec::new(&env));
+        collaborators.len()
     }
 
     pub fn get_collaborators(

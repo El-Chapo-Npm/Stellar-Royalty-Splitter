@@ -106,6 +106,8 @@ app.use("/api/v1/collaborators", collaboratorsRouter);
 app.use("/api/v1/secondary-royalty", secondaryRoyaltyRouter);
 app.use("/api/v1", historyRouter);
 app.use("/api/v1", analyticsRouter);
+app.use("/api/v1/contract", contractRouter);
+app.use("/api/v1/contract", contractRouter);
 
 // Health check
 app.get("/api/v1/health", (_req, res) =>

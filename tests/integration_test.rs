@@ -196,3 +196,41 @@ fn test_ttl_extended_after_ledger_advance() {
     env.mock_auths(&[]);
     client.distribute(&token, &1000_i128);
 }
+
+#[test]
+#[should_panic(expected = "share cannot be zero")]
+fn test_zero_share_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, client) = setup(&env);
+    let a = Address::generate(&env);
+    let b = Address::generate(&env);
+    // b has a zero share — must panic
+    client.initialize(&vec![&env, a, b], &vec![&env, 10000_u32, 0_u32]);
+}
+
+#[test]
+fn test_collaborator_count() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, client) = setup(&env);
+    let a = Address::generate(&env);
+    let b = Address::generate(&env);
+    let c = Address::generate(&env);
+    client.initialize(
+        &vec![&env, a, b, c],
+        &vec![&env, 5000_u32, 3000_u32, 2000_u32],
+    );
+    assert_eq!(client.collaborator_count(), 3);
+}
+
+#[test]
+#[should_panic]
+fn test_unauthorized_init_rejected() {
+    let env = Env::default();
+    // No mock_all_auths — require_auth() on the admin must reject the call.
+    let (_, client) = setup(&env);
+    let admin = Address::generate(&env);
+    let b = Address::generate(&env);
+    client.initialize(&vec![&env, admin, b], &vec![&env, 5000_u32, 5000_u32]);
+}
