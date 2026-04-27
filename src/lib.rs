@@ -26,6 +26,16 @@ pub struct RoyaltySplitter;
 #[contractimpl]
 impl RoyaltySplitter {
 
+    /// Initialize the contract with collaborators and their revenue shares.
+    /// 
+    /// # Arguments
+    /// * `collaborators` - List of wallet addresses that will receive payouts
+    /// * `shares` - Corresponding basis-point allocations (must sum to 10,000)
+    /// 
+    /// # Panics
+    /// * If already initialized
+    /// * If shares don't sum to exactly 10,000 basis points (100%)
+    /// * If any share is zero or if there are duplicate addresses
     pub fn initialize(
         env: Env,
         collaborators: Vec<Address>,
@@ -56,6 +66,7 @@ impl RoyaltySplitter {
         let mut share_map: Map<Address, u32> =
             Map::new(&env);
 
+        // Build the share map and validate each entry
         for i in 0..collaborators.len() {
 
             let addr = collaborators.get(i).unwrap();
@@ -110,6 +121,13 @@ impl RoyaltySplitter {
             );
     }
 
+    /// Set the secondary royalty rate for resales.
+    /// 
+    /// # Arguments
+    /// * `new_rate` - Royalty rate in basis points (e.g., 500 = 5%)
+    /// 
+    /// # Authorization
+    /// Requires admin signature
     pub fn set_royalty_rate(
         env: Env,
         new_rate: u32,
@@ -154,6 +172,17 @@ impl RoyaltySplitter {
     }
 
     /// Distribute the full contract balance of `token` to all collaborators.
+    /// 
+    /// # Arguments
+    /// * `token` - The token address to distribute (e.g., XLM or other Stellar asset)
+    /// 
+    /// # Distribution Logic
+    /// Each collaborator receives: (total_amount * their_share) / 10,000
+    /// The last collaborator receives any remaining dust from integer division rounding.
+    /// This ensures the full amount is always distributed with no funds left behind.
+    /// 
+    /// # Authorization
+    /// Requires admin signature
     pub fn distribute(env: Env, token: Address) {
         env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
         let admin: Address = env
@@ -194,6 +223,7 @@ impl RoyaltySplitter {
 
         let mut total_calculated: i128 = 0;
 
+        // Calculate payouts for all collaborators except the last one
         for i in 0..(n - 1) {
 
             let addr =
@@ -245,6 +275,19 @@ impl RoyaltySplitter {
         );
     }
 
+    /// Record a secondary royalty payment from a resale.
+    /// 
+    /// # Arguments
+    /// * `token` - The token being paid as royalty
+    /// * `from` - The address paying the royalty (typically a marketplace)
+    /// * `royalty_amount` - Amount of royalty to transfer
+    /// 
+    /// # Behavior
+    /// Transfers the royalty amount to the contract and adds it to the pending pool.
+    /// The pool accumulates until distribute_secondary_royalties is called.
+    /// 
+    /// # Authorization
+    /// Requires signature from the `from` address
     pub fn record_secondary_royalty(
         env: Env,
         token: Address,
@@ -264,6 +307,7 @@ impl RoyaltySplitter {
             &royalty_amount,
         );
 
+        // Add to the accumulated royalty pool
         let current_pool: i128 = env
             .storage()
             .instance()
@@ -285,6 +329,16 @@ impl RoyaltySplitter {
             );
     }
 
+    /// Distribute all accumulated secondary royalties to collaborators.
+    /// 
+    /// # Behavior
+    /// Distributes the entire secondary royalty pool according to collaborator shares.
+    /// Uses the same rounding logic as primary distribution - the last collaborator
+    /// receives any dust from integer division to ensure complete distribution.
+    /// Resets the pool to zero after distribution.
+    /// 
+    /// # Authorization
+    /// Requires admin signature
     pub fn distribute_secondary_royalties(
         env: Env,
     ) {
@@ -395,6 +449,17 @@ impl RoyaltySplitter {
         );
     }
 
+    /// Calculate the royalty amount for a secondary sale.
+    /// 
+    /// # Arguments
+    /// * `sale_price` - The resale price of the NFT
+    /// 
+    /// # Returns
+    /// The calculated royalty amount based on the configured rate
+    /// 
+    /// # Example
+    /// If royalty rate is 500 (5%) and sale_price is 1000 XLM,
+    /// returns 50 XLM (1000 * 500 / 10,000)
     pub fn record_secondary_sale(
         env: Env,
         sale_price: i128,
@@ -411,6 +476,7 @@ impl RoyaltySplitter {
             .get(&DataKey::RoyaltyRate)
             .unwrap_or(0);
 
+        // Calculate royalty: (sale_price * rate) / 10,000
         let royalty_amount =
             sale_price * rate as i128 / 10_000;
 
@@ -572,6 +638,14 @@ impl RoyaltySplitter {
             .unwrap_or(0)
     }
 
+    /// Calculate the sum of all collaborator shares.
+    /// 
+    /// # Returns
+    /// Total basis points across all collaborators (should always be 10,000)
+    /// 
+    /// # Note
+    /// This is used as a validation check before distributions to ensure
+    /// the share map hasn't been corrupted.
     pub fn get_total_shares(env: Env) -> u32 {
         env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
         let share_map: Map<Address, u32> = env
