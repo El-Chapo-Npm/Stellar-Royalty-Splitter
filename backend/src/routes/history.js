@@ -81,6 +81,14 @@ router.post('/transaction/confirm/:txHash', async (req, res) => {
     const { txHash } = req.params;
     const { blockTime, errorMessage } = req.body;
 
+    // Validate transaction hash format (64 hex characters)
+    if (!/^[0-9a-fA-F]{64}$/.test(txHash)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid transaction hash format. Expected 64 hexadecimal characters.'
+      });
+    }
+
     // Return 404 if transaction does not exist
     const existing = getTransactionDetails(txHash);
     if (!existing) {
