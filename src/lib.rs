@@ -452,6 +452,71 @@ impl RoyaltySplitter {
             .get(collaborator)
             .expect("collaborator not found")
     }
+    /// Update a collaborator's share allocation.
+    ///
+    /// # Arguments
+    /// * `collaborator` - The address of the collaborator to update
+    /// * `new_share` - The new share in basis points
+    ///
+    /// # Validation
+    /// - Requires admin authorization
+    /// - Collaborator must already exist
+    /// - Total shares must still sum to 10,000 after update
+    ///
+    /// # Authorization
+    /// Requires admin signature
+    pub fn update_share(
+        env: Env,
+        collaborator: Address,
+        new_share: u32,
+    ) {
+        env.storage().instance().extend_ttl(MIN_TTL, MAX_TTL);
+
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("contract not initialized");
+
+        admin.require_auth();
+
+        let mut share_map: Map<Address, u32> = env
+            .storage()
+            .instance()
+            .get(&DataKey::ShareMap)
+            .expect("contract not initialized");
+
+        // Verify collaborator exists
+        if !share_map.contains_key(collaborator.clone()) {
+            panic!("collaborator not found");
+        }
+
+        // Get old share and calculate new total
+        let old_share = share_map.get(collaborator.clone()).unwrap();
+        let current_total = Self::get_total_shares(env.clone());
+        let new_total = current_total - old_share + new_share;
+
+        if new_total != 10_000 {
+            panic!("shares must sum to 10000 after update");
+        }
+
+        if new_share == 0 {
+            panic!("share cannot be zero");
+        }
+
+        // Update the share
+        share_map.set(collaborator.clone(), new_share);
+
+        env.storage()
+            .instance()
+            .set(&DataKey::ShareMap, &share_map);
+
+        env.events().publish(
+            (symbol_short!("share"), symbol_short!("updated")),
+            (collaborator, new_share),
+        );
+    }
+
 
     /// Returns true if the given address is a registered collaborator.
     pub fn is_collaborator(
