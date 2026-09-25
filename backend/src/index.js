@@ -67,6 +67,10 @@ import { startFinalityCleanupScheduler } from "./jobs/finality-cleanup-job.js";
 import { startPaymentScheduleJob } from "./jobs/payment-schedule-job.js";
 import { setupGraphQL } from "./graphql.js";
 import { requestComplexityMiddleware } from "./request-complexity.js";
+import { verifySignatureMiddleware } from "./verify-signature.js";
+import { reputationRouter } from "./routes/reputation.js";
+import { searchRouter } from "./routes/search.js";
+import { privateProofsRouter } from "./routes/private-proofs.js";
 
 // Initialize database on startup
 initializeDatabase();
@@ -338,6 +342,9 @@ app.use("/api/v1/templates", templatesRouter);
 app.use("/api/v1", emailDigestRouter);
 app.use("/api/v1/disputes", writeLimiter);
 app.use("/api/v1/disputes", disputesRouter);
+app.use("/api/v1/reputation", reputationRouter);
+app.use("/api/v1/search", searchRouter);
+app.use("/api/v1/private-proofs", privateProofsRouter);
 app.use("/api/v1/referrals", writeLimiter);
 app.use("/api/v1/referrals", referralsRouter);
 app.use("/metrics", metricsRouter);

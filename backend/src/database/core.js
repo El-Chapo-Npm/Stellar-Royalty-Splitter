@@ -13,7 +13,8 @@ db.pragma("cache_size = -64000"); // 64MB page cache
 db.pragma("foreign_keys = ON"); // enforce FK constraints
 db.pragma("temp_store = MEMORY"); // temp tables in memory
 
-// Checkpoint the WAL periodically to prevent unbounded growth.let _writeCount = 0;
+// Checkpoint the WAL periodically to prevent unbounded growth.
+let _writeCount = 0;
 export function countWrite() {
   if (++_writeCount % 100 === 0) {
     checkpointDatabase();
@@ -95,8 +96,6 @@ export function initializeDatabase() {
       sql: `
         PRAGMA foreign_keys = OFF;
 
-        BEGIN;
-
         CREATE TABLE IF NOT EXISTS distribution_payouts_new (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           transactionId INTEGER NOT NULL,
@@ -125,8 +124,6 @@ export function initializeDatabase() {
         DROP TABLE secondary_royalty_distributions;
         ALTER TABLE secondary_royalty_distributions_new RENAME TO secondary_royalty_distributions;
 
-        COMMIT;
-
         PRAGMA foreign_keys = ON;
       `,
     },
@@ -135,7 +132,7 @@ export function initializeDatabase() {
       sql: `
         CREATE TABLE IF NOT EXISTS payment_preferences (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          walletAddress TEXT NOT NULLR UNIQUE,
+          walletAddress TEXT NOT NULLR UNIQUE,
           paymentMethod TEXT NOT NULL CHECK(paymentMethod IN ('direct_transfer', 'usdc', 'zlm')),
           updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -208,7 +205,7 @@ export function initializeDatabase() {
 
           CREATE TABLE IF NOT EXISTS api_keys (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            keyHash TEXT NOT NULL UNIQUE,
+            keyHash TEXT NOT NULL UNIQUE,
             userId INTEGER NOT NULL,
             expiresAt DATETIME,
             createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -350,6 +347,71 @@ export function initializeDatabase() {
           CREATE INDEX IF NOT EXISTS idx_application_logs_level_timestamp ON application_logs(level, timestamp);
           CREATE INDEX IF NOT EXISTS idx_application_logs_correlation_id ON application_logs(correlation_id);
           CREATE INDEX IF NOT EXISTS idx_application_logs_request_id ON application_logs(request_id);
+        `,
+      },
+      {
+        // #962, #961, #971, #972: trust, dispute intelligence, search, and privacy primitives
+        version: 15,
+        sql: `
+          CREATE TABLE IF NOT EXISTS reputation_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            walletAddress TEXT NOT NULL,
+            eventType TEXT NOT NULL,
+            successful INTEGER NOT NULL DEFAULT 1,
+            occurredAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            metadata TEXT NOT NULL DEFAULT '{}'
+          );
+          CREATE INDEX IF NOT EXISTS idx_reputation_events_wallet ON reputation_events(walletAddress, occurredAt);
+          CREATE TABLE IF NOT EXISTS reputation_scores (
+            walletAddress TEXT PRIMARY KEY,
+            paymentReliability REAL NOT NULL DEFAULT 0,
+            activityConsistency REAL NOT NULL DEFAULT 0,
+            trustScore REAL NOT NULL DEFAULT 0,
+            totalEvents INTEGER NOT NULL DEFAULT 0,
+            updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE TABLE IF NOT EXISTS dispute_evidence (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            disputeId INTEGER NOT NULL,
+            walletAddress TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            content TEXT NOT NULL,
+            contentHash TEXT NOT NULL,
+            createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(disputeId) REFERENCES disputes(id) ON DELETE CASCADE
+          );
+          CREATE INDEX IF NOT EXISTS idx_dispute_evidence_dispute ON dispute_evidence(disputeId, createdAt);
+          CREATE TABLE IF NOT EXISTS dispute_analyses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            disputeId INTEGER NOT NULL,
+            provider TEXT NOT NULL,
+            findings TEXT NOT NULL,
+            recommendation TEXT NOT NULL,
+            confidence REAL NOT NULL,
+            createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(disputeId) REFERENCES disputes(id) ON DELETE CASCADE
+          );
+          CREATE TABLE IF NOT EXISTS search_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entityType TEXT NOT NULL,
+            entityId TEXT NOT NULL,
+            title TEXT NOT NULL,
+            body TEXT NOT NULL,
+            metadata TEXT NOT NULL DEFAULT '{}',
+            updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(entityType, entityId)
+          );
+          CREATE VIRTUAL TABLE IF NOT EXISTS search_documents_fts USING fts5(entityType UNINDEXED, entityId UNINDEXED, title, body);
+          CREATE TABLE IF NOT EXISTS private_proofs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            walletAddress TEXT NOT NULL,
+            proofType TEXT NOT NULL,
+            commitment TEXT NOT NULL,
+            proof TEXT NOT NULL,
+            publicSignals TEXT NOT NULL DEFAULT '[]',
+            createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE INDEX IF NOT EXISTS idx_private_proofs_wallet ON private_proofs(walletAddress, createdAt);
         `,
       },
   ];

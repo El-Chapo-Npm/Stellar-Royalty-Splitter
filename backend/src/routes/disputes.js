@@ -39,8 +39,32 @@ import {
   disputeSubmittedEmail,
   disputeStatusUpdateEmail,
 } from "../email/templates/dispute-notification.js";
+import { addEvidence, analyzeDispute, getLatestAnalysis, listEvidence } from "../database/dispute-intelligence.js";
 
 export const disputesRouter = Router();
+
+disputesRouter.post("/:ticketId/evidence", (req, res) => {
+  const dispute = resolveDispute(req.params.ticketId, res);
+  if (!dispute) return;
+  const { walletAddress, kind, content } = req.body ?? {};
+  const validKinds = ["transaction_proof", "receipt", "agreement", "contract", "tx_hash", "other"];
+  if (walletAddress !== dispute.walletAddress || !validKinds.includes(kind) || typeof content !== "string" || content.length < 1 || content.length > 10000) {
+    return sendError(res, 400, "invalid_evidence", "Valid walletAddress, kind, and content are required");
+  }
+  return res.status(201).json({ success: true, data: addEvidence({ disputeId: dispute.id, walletAddress, kind, content }) });
+});
+
+disputesRouter.get("/:ticketId/evidence", (req, res) => {
+  const dispute = resolveDispute(req.params.ticketId, res);
+  if (!dispute) return;
+  return res.json({ success: true, data: listEvidence(dispute.id), analysis: getLatestAnalysis(dispute.id) });
+});
+
+disputesRouter.post("/:ticketId/analyze", (req, res) => {
+  const dispute = resolveDispute(req.params.ticketId, res);
+  if (!dispute) return;
+  return res.status(201).json({ success: true, data: analyzeDispute(dispute.id) });
+});
 
 // ─── Admin auth middleware ────────────────────────────────────────────────────
 
