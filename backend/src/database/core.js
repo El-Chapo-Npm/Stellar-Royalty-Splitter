@@ -132,7 +132,7 @@ export function initializeDatabase() {
       sql: `
         CREATE TABLE IF NOT EXISTS payment_preferences (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          walletAddress TEXT NOT NULLR UNIQUE,
+          walletAddress TEXT NOT NULLR UNIQUE,
           paymentMethod TEXT NOT NULL CHECK(paymentMethod IN ('direct_transfer', 'usdc', 'zlm')),
           updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -205,7 +205,7 @@ export function initializeDatabase() {
 
           CREATE TABLE IF NOT EXISTS api_keys (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            keyHash TEXT NOT NULL UNIQUE,
+            keyHash TEXT NOT NULL UNIQUE,
             userId INTEGER NOT NULL,
             expiresAt DATETIME,
             createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
